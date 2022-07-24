@@ -8,5 +8,5 @@ export default function errorHandle(err: any, req: Request, res: Response, next:
     if (err.response) return res.sendStatus(err.response.status);
     if (err.status) return res.status(err.status).send(err.message); // throw errors manually
 
-    res.sendStatus(500); // internal server error
+    res.status(500).send(err);
 };
