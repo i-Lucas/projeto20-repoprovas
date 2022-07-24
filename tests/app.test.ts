@@ -28,10 +28,18 @@ describe('signup tests', () => {
 		expect(response.status).toEqual(409);
 	});
 
-	it('invalid signup -> status 422', async () => {
+	it('invalid signup password -> status 422', async () => {
 
 		const login = userFactory.loginGenerate();
 		delete login.password;
+		const response = await supertest(app).post('/signup').send(login);
+		expect(response.status).toEqual(422);
+	});
+
+	it('invalid signup email -> status 422', async () => {
+
+		const login = userFactory.loginGenerate();
+		delete login.email;
 		const response = await supertest(app).post('/signup').send(login);
 		expect(response.status).toEqual(422);
 	});
@@ -51,21 +59,29 @@ describe('signin tests', () => {
 		expect(token).not.toBeNull();
 	});
 
-	it('wrong email or password -> status 401', async () => {
+	it('wrong password -> status 401', async () => {
 
 		const login = userFactory.loginGenerate();
-		const user = userFactory.userGenerate(login);
+		const user = await userFactory.userGenerate(login);
+		delete user.id;
 
-		const response = await supertest(app).post('/sign-in')
+		const response = await supertest(app).post('/signin')
 			.send({ ...user, password: 'badpassword' });
 		expect(response.status).toEqual(401);
 	});
 
-	it('invalid input -> status 422', async () => {
+	it('invalid email -> status 422', async () => {
 
 		const response = await supertest(app).post('/signin')
 			.send({ email: 'invalidemail', password: 'badbad' });
 		expect(response.status).toEqual(422);
+	});
+
+	it('user not found -> status 404', async () => {
+
+		const response = await supertest(app).post('/signin')
+			.send({ email: 'invalidemail@test.com', password: 'badbad' });
+		expect(response.status).toEqual(404);
 	});
 });
 
@@ -90,11 +106,56 @@ describe('/tests route', () => {
 		expect(response.status).toEqual(401);
 	});
 
-	it('invalid test schema -> status 422', async () => {
+	it('invalid test schema category id -> status 422', async () => {
 
 		const token = await tokenFactory.tokenGenerate();
 		const test = testFactory.testGenerate();
 		delete test.categoryId;
+
+		const response = await supertest(app).post('/tests')
+			.send(test).set('Authorization', `Bearer ${token}`);
+		expect(response.status).toEqual(422);
+	});
+
+	it('invalid test schema pdf -> status 422', async () => {
+
+		const token = await tokenFactory.tokenGenerate();
+		const test = testFactory.testGenerate();
+		delete test.pdfUrl;
+
+		const response = await supertest(app).post('/tests')
+			.send(test).set('Authorization', `Bearer ${token}`);
+		expect(response.status).toEqual(422);
+	});
+
+	it('invalid test schema name -> status 422', async () => {
+
+		const token = await tokenFactory.tokenGenerate();
+		const test = testFactory.testGenerate();
+		delete test.name;
+
+		const response = await supertest(app).post('/tests')
+			.send(test).set('Authorization', `Bearer ${token}`);
+		expect(response.status).toEqual(422);
+	});
+
+	it('invalid test schema name typeof -> status 422', async () => {
+		
+		const token = await tokenFactory.tokenGenerate();
+		const test = testFactory.testGenerate();
+		// @ts-ignore
+		test.name = 123;
+
+		const response = await supertest(app).post('/tests')
+			.send(test).set('Authorization', `Bearer ${token}`);
+		expect(response.status).toEqual(422);
+	});
+
+	it('invalid test schema pdf url typeof -> status 422', async () => {
+
+		const token = await tokenFactory.tokenGenerate();
+		const test = testFactory.testGenerate();
+		test.pdfUrl = 'invalidurl';
 
 		const response = await supertest(app).post('/tests')
 			.send(test).set('Authorization', `Bearer ${token}`);
@@ -106,8 +167,8 @@ describe('/tests route', () => {
 		const token = await tokenFactory.tokenGenerate();
 		const test = testFactory.testGenerate();
 
-		const INVALID_CATEGORY = 100;
-		test.categoryId = INVALID_CATEGORY;
+		const invalid = 100;
+		test.categoryId = invalid;
 
 		const response = await supertest(app)
 			.post('/tests')
@@ -122,8 +183,8 @@ describe('/tests route', () => {
 		const token = await tokenFactory.tokenGenerate();
 		const test = testFactory.testGenerate();
 
-		const INVALID_TEACHER_DISCIPLINE_ID = 100;
-		test.teacherDisciplineId = INVALID_TEACHER_DISCIPLINE_ID;
+		const invalid = 100;
+		test.teacherDisciplineId = invalid;
 
 		const response = await supertest(app)
 			.post('/tests')
@@ -153,11 +214,26 @@ describe('/tests/disciplines route', () => {
 		expect(response.body).not.toBeNull();
 		expect(response.status).toEqual(200);
 	});
+
+	it('get tests by discipline no token -> status 401', async () => {
+
+		const response = await supertest(app)
+			.get('/tests/disciplines');
+		expect(response.status).toEqual(401);
+	});
+
+	it('get tests by discipline invalid token -> status 401', async () => {
+
+		const response = await supertest(app)
+			.get('/tests/disciplines')
+			.set('Authorization', `Bearer invalidtoken`);
+		expect(response.status).toEqual(401);
+	});
 });
 
 describe('/tests/teachers route', () => {
 
-	it(' get tests by teachers', async () => {
+	it('get tests by teachers', async () => {
 
 		const token = await tokenFactory.tokenGenerate();
 		const test = testFactory.testGenerate();
@@ -173,6 +249,21 @@ describe('/tests/teachers route', () => {
 
 		expect(response.body).not.toBeNull();
 		expect(response.status).toEqual(200);
+	});
+
+	it('get tests by teachers no token -> status 401', async () => {
+
+		const response = await supertest(app)
+			.get('/tests/teachers');
+		expect(response.status).toEqual(401);
+	});
+
+	it('get tests by teachers invalid token -> status 401', async () => {
+
+		const response = await supertest(app)
+			.get('/tests/teachers')
+			.set('Authorization', `Bearer invalidtoken`);
+		expect(response.status).toEqual(401);
 	});
 });
 
